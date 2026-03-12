@@ -1,6 +1,7 @@
 @TestOn('vm')
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:brotli_codec/brotli_codec.dart';
@@ -100,6 +101,22 @@ void main() {
       test('invalid data throws exception', () {
         final invalidData = Uint8List.fromList([0, 1, 2, 3, 4, 5]);
         expect(() => brotli.decode(invalidData), throwsException);
+      });
+
+      test('idempotent close for encoder sink', () {
+        final sink = brotli.encoder.startChunkedConversion(
+          StreamController<List<int>>().sink,
+        );
+        sink.close();
+        expect(sink.close, returnsNormally);
+      });
+
+      test('idempotent close for decoder sink', () {
+        final sink = brotli.decoder.startChunkedConversion(
+          StreamController<List<int>>().sink,
+        );
+        sink.close();
+        expect(sink.close, returnsNormally);
       });
     });
   });

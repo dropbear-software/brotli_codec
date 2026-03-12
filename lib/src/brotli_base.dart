@@ -212,15 +212,22 @@ class BrotliDecoder extends Converter<List<int>, List<int>> {
   }
 }
 
-class _BrotliEncoderSink extends ByteConversionSinkBase {
+class _BrotliEncoderSink extends ByteConversionSinkBase implements Finalizable {
   final Sink<List<int>> _outSink;
-  final Pointer<bindings.BrotliEncoderStateStruct> _state;
+  Pointer<bindings.BrotliEncoderStateStruct> _state;
   final Pointer<Size> _availableIn;
   final Pointer<Pointer<Uint8>> _nextIn;
   final Pointer<Size> _availableOut;
   final Pointer<Pointer<Uint8>> _nextOut;
   final Pointer<Uint8> _chunkPtr;
   static const int _chunkSize = 65536;
+
+  static final _finalizer = NativeFinalizer(
+    Native.addressOf<
+          NativeFunction<Void Function(Pointer<bindings.BrotliEncoderState>)>
+        >(bindings.BrotliEncoderDestroyInstance)
+        .cast(),
+  );
 
   _BrotliEncoderSink(this._outSink, int quality, int window)
     : _state = bindings.BrotliEncoderCreateInstance(nullptr, nullptr, nullptr),
@@ -232,6 +239,7 @@ class _BrotliEncoderSink extends ByteConversionSinkBase {
     if (_state == nullptr) {
       throw Exception('Failed to create Brotli encoder instance');
     }
+    _finalizer.attach(this, _state.cast(), detach: this);
     bindings.BrotliEncoderSetParameter(
       _state,
       bindings.BrotliEncoderParameter.BROTLI_PARAM_QUALITY,
@@ -246,6 +254,7 @@ class _BrotliEncoderSink extends ByteConversionSinkBase {
 
   @override
   void add(List<int> chunk) {
+    if (_state == nullptr) throw StateError('Sink is closed');
     final bytes = chunk is Uint8List ? chunk : Uint8List.fromList(chunk);
     final inputPtr = calloc<Uint8>(bytes.length);
     inputPtr.asTypedList(bytes.length).setAll(0, bytes);
@@ -288,6 +297,8 @@ class _BrotliEncoderSink extends ByteConversionSinkBase {
 
   @override
   void close() {
+    if (_state == nullptr) return;
+    _finalizer.detach(this);
     try {
       while (bindings.BrotliEncoderIsFinished(_state) == 0) {
         _availableIn.value = 0;
@@ -314,6 +325,7 @@ class _BrotliEncoderSink extends ByteConversionSinkBase {
       }
     } finally {
       bindings.BrotliEncoderDestroyInstance(_state);
+      _state = nullptr;
       calloc.free(_availableIn);
       calloc.free(_nextIn);
       calloc.free(_availableOut);
@@ -324,15 +336,22 @@ class _BrotliEncoderSink extends ByteConversionSinkBase {
   }
 }
 
-class _BrotliDecoderSink extends ByteConversionSinkBase {
+class _BrotliDecoderSink extends ByteConversionSinkBase implements Finalizable {
   final Sink<List<int>> _outSink;
-  final Pointer<bindings.BrotliDecoderStateStruct> _state;
+  Pointer<bindings.BrotliDecoderStateStruct> _state;
   final Pointer<Size> _availableIn;
   final Pointer<Pointer<Uint8>> _nextIn;
   final Pointer<Size> _availableOut;
   final Pointer<Pointer<Uint8>> _nextOut;
   final Pointer<Uint8> _chunkPtr;
   static const int _chunkSize = 65536;
+
+  static final _finalizer = NativeFinalizer(
+    Native.addressOf<
+          NativeFunction<Void Function(Pointer<bindings.BrotliDecoderState>)>
+        >(bindings.BrotliDecoderDestroyInstance)
+        .cast(),
+  );
 
   _BrotliDecoderSink(this._outSink)
     : _state = bindings.BrotliDecoderCreateInstance(nullptr, nullptr, nullptr),
@@ -344,10 +363,12 @@ class _BrotliDecoderSink extends ByteConversionSinkBase {
     if (_state == nullptr) {
       throw Exception('Failed to create Brotli decoder instance');
     }
+    _finalizer.attach(this, _state.cast(), detach: this);
   }
 
   @override
   void add(List<int> chunk) {
+    if (_state == nullptr) throw StateError('Sink is closed');
     final bytes = chunk is Uint8List ? chunk : Uint8List.fromList(chunk);
     final inputPtr = calloc<Uint8>(bytes.length);
     inputPtr.asTypedList(bytes.length).setAll(0, bytes);
@@ -403,7 +424,10 @@ class _BrotliDecoderSink extends ByteConversionSinkBase {
 
   @override
   void close() {
+    if (_state == nullptr) return;
+    _finalizer.detach(this);
     bindings.BrotliDecoderDestroyInstance(_state);
+    _state = nullptr;
     calloc.free(_availableIn);
     calloc.free(_nextIn);
     calloc.free(_availableOut);
