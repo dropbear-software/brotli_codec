@@ -2,7 +2,7 @@
 
 High-performance Brotli compression and decompression for Dart.
 
-This package provides a Dart wrapper around Google's official [Brotli C library](https://github.com/google/brotli), utilizing the modern Dart "hooks" and Native Assets feature for seamless native code integration.
+This package provides a Dart wrapper around Google's official [Brotli C library](https://github.com/google/brotli), utilizing the modern Dart "hooks" feature for seamless native code integration.
 
 ## Features
 
@@ -11,7 +11,7 @@ This package provides a Dart wrapper around Google's official [Brotli C library]
 - **Streaming Support**: Efficiently process large data sets using streams and `transform()`.
 - **High Performance**: Direct FFI bindings to the highly optimized C implementation.
 - **Configurable**: Support for adjustable compression quality and window sizes.
-- **Native Assets**: No manual compilation or complex setup required.
+- **Dart Build Hooks**: No manual compilation or complex setup required; the C library is automatically compiled and bundled.
 
 ## Getting started
 
@@ -77,7 +77,7 @@ final compressed = fused.convert('Some text to compress');
 
 ## Platform Support
 
-This package uses Native Assets and supports the following platforms:
+This package uses Dart build hooks to bundle code assets and supports the following platforms:
 
 - Linux (x64)
 - macOS (x64, arm64)
@@ -87,5 +87,5 @@ This package uses Native Assets and supports the following platforms:
 
 ## Additional information
 
-- **Issues**: Please file bug reports and feature requests on the [GitHub issue tracker](https://github.com/google/brotli/issues).
+- **Issues**: Please file upstream bug reports and feature requests on the [GitHub issue tracker](https://github.com/google/brotli/issues).
 - **License**: This wrapper is distributed under the MIT License. The underlying Brotli C library is also licensed under the MIT License.
