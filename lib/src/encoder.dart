@@ -39,7 +39,9 @@ class BrotliEncoder extends Converter<List<int>, List<int>> {
           outputPtr,
         );
         if (result == 0) throw Exception('Brotli compression failed');
-        return Uint8List.fromList(outputPtr.asTypedList(encodedSizePtr.value));
+        final builder = BytesBuilder();
+        builder.add(outputPtr.asTypedList(encodedSizePtr.value));
+        return builder.takeBytes();
       } finally {
         calloc.free(outputPtr);
         calloc.free(encodedSizePtr);
@@ -72,7 +74,9 @@ class BrotliEncoder extends Converter<List<int>, List<int>> {
         throw Exception('Brotli compression failed');
       }
 
-      return Uint8List.fromList(outputPtr.asTypedList(encodedSizePtr.value));
+      final builder = BytesBuilder();
+      builder.add(outputPtr.asTypedList(encodedSizePtr.value));
+      return builder.takeBytes();
     } finally {
       calloc.free(inputPtr);
       calloc.free(outputPtr);

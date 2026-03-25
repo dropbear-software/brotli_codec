@@ -34,7 +34,7 @@ class BrotliDecoder extends Converter<List<int>, List<int>> {
     final availableOutPtr = calloc<Size>();
     final nextOutPtr = calloc<Pointer<Uint8>>();
 
-    final outputChunks = <Uint8List>[];
+    final builder = BytesBuilder();
     const chunkSize = 65536;
     final chunkPtr = calloc<Uint8>(chunkSize);
 
@@ -54,7 +54,7 @@ class BrotliDecoder extends Converter<List<int>, List<int>> {
 
         final produced = chunkSize - availableOutPtr.value;
         if (produced > 0) {
-          outputChunks.add(Uint8List.fromList(chunkPtr.asTypedList(produced)));
+          builder.add(chunkPtr.asTypedList(produced));
         }
 
         if (result ==
@@ -72,17 +72,7 @@ class BrotliDecoder extends Converter<List<int>, List<int>> {
         throw Exception('Brotli decompression failed with result: $result');
       }
 
-      final totalSize = outputChunks.fold(
-        0,
-        (sum, chunk) => sum + chunk.length,
-      );
-      final result = Uint8List(totalSize);
-      var offset = 0;
-      for (final chunk in outputChunks) {
-        result.setAll(offset, chunk);
-        offset += chunk.length;
-      }
-      return result;
+      return builder.takeBytes();
     } finally {
       bindings.BrotliDecoderDestroyInstance(state);
       calloc.free(inputPtr);
