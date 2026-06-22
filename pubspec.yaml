@@ -1,6 +1,9 @@
 name: brotli_codec
 description: High-performance Brotli compression and decompression for Dart.
 version: 1.0.0
+repository: https://github.com/dropbear-software/brotli_codec
+issue_tracker: https://github.com/dropbear-software/brotli_codec/issues
+publish_to: https://homebar.dropbear.dev
 
 environment:
   sdk: ^3.11.0

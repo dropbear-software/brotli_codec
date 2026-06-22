@@ -22,7 +22,7 @@ dependencies:
   brotli_codec: ^1.0.0
 ```
 
-*Note: This package requires Dart 3.10 or later.*
+*Note: This package requires Dart 3.11 or later.*
 
 ## Usage
 
