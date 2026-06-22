@@ -125,6 +125,8 @@ class _BrotliEncoderSink extends ByteConversionSinkBase implements Finalizable {
   void add(List<int> chunk) {
     if (_state == nullptr) throw StateError('Sink is closed');
     final bytes = chunk is Uint8List ? chunk : Uint8List.fromList(chunk);
+    if (bytes.isEmpty) return;
+
     final inputPtr = malloc<Uint8>(bytes.length);
     inputPtr.asTypedList(bytes.length).setAll(0, bytes);
 

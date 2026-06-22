@@ -103,6 +103,37 @@ void main() {
         expect(() => brotli.decode(invalidData), throwsException);
       });
 
+      test('empty input to decoder throws exception', () {
+        expect(() => brotli.decode(<int>[]), throwsException);
+      });
+
+      test('streaming encoder handles empty chunks', () async {
+        final stream = Stream<List<int>>.fromIterable([
+          [],
+          utf8.encode('chunk'),
+          [],
+        ]);
+        final compressed = await stream
+            .transform<List<int>>(brotli.encoder)
+            .fold<List<int>>([], (p, e) => p..addAll(e));
+        expect(brotli.decode(compressed), equals(utf8.encode('chunk')));
+      });
+
+      test('streaming decoder handles empty chunks', () async {
+        final compressed = brotli.encode(utf8.encode('chunk'));
+        final stream = Stream<List<int>>.fromIterable([
+          [],
+          compressed.sublist(0, 5),
+          [],
+          compressed.sublist(5),
+          [],
+        ]);
+        final decompressed = await stream
+            .transform<List<int>>(brotli.decoder)
+            .fold<List<int>>([], (p, e) => p..addAll(e));
+        expect(decompressed, equals(utf8.encode('chunk')));
+      });
+
       test('idempotent close for encoder sink', () {
         final sink = brotli.encoder.startChunkedConversion(
           StreamController<List<int>>().sink,

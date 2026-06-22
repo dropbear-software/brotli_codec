@@ -28,8 +28,11 @@ final class BrotliDecoder extends Converter<List<int>, List<int>> {
     }
 
     final inputBytes = input is Uint8List ? input : Uint8List.fromList(input);
-    final inputPtr = calloc<Uint8>(inputBytes.length);
-    inputPtr.asTypedList(inputBytes.length).setAll(0, inputBytes);
+    final inputPtr =
+        inputBytes.isEmpty ? nullptr : calloc<Uint8>(inputBytes.length);
+    if (inputPtr != nullptr) {
+      inputPtr.asTypedList(inputBytes.length).setAll(0, inputBytes);
+    }
 
     final availableInPtr = calloc<Size>();
     availableInPtr.value = inputBytes.length;
@@ -119,6 +122,8 @@ class _BrotliDecoderSink extends ByteConversionSinkBase implements Finalizable {
   void add(List<int> chunk) {
     if (_state == nullptr) throw StateError('Sink is closed');
     final bytes = chunk is Uint8List ? chunk : Uint8List.fromList(chunk);
+    if (bytes.isEmpty) return;
+
     final inputPtr = malloc<Uint8>(bytes.length);
     inputPtr.asTypedList(bytes.length).setAll(0, bytes);
 
