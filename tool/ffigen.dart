@@ -14,6 +14,9 @@ void main() {
   final bindingsOutput = packageRoot.resolve(
     'lib/src/third_party/brotli_bindings.g.dart',
   );
+  final treeShakeMapping = packageRoot.resolve(
+    'lib/src/third_party/brotli_bindings.record_use_mapping.g.dart',
+  );
 
   final logger = Logger.detached('Brotli FFIgen')
     ..level = Level.INFO
@@ -42,6 +45,7 @@ void main() {
     ),
     functions: Functions(
       include: (decl) => decl.originalName.startsWith('Brotli'),
+      recordUse: (_) => true,
     ),
     structs: Structs(include: (decl) => decl.originalName.startsWith('Brotli')),
     enums: Enums(
@@ -59,6 +63,7 @@ void main() {
     ),
     output: Output(
       dartFile: bindingsOutput,
+      recordUseMapping: treeShakeMapping,
       style: const NativeExternalBindings(
         assetId: 'package:brotli_codec/src/third_party/brotli_bindings.g.dart',
       ),
