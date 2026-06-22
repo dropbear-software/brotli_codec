@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'decoder.dart';
 import 'encoder.dart';
-import 'generated/brotli_bindings.dart' as bindings;
 import 'quality.dart';
+import 'third_party/brotli_bindings.g.dart' as bindings;
 
 /// A [Codec] that compresses and decompresses data using Brotli.
 class BrotliCodec extends Codec<List<int>, List<int>> {

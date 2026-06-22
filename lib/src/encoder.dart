@@ -1,14 +1,19 @@
+// The @RecordUse FFI tree-shaking API is currently experimental.
+// ignore_for_file: experimental_member_use
+
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
+import 'package:meta/meta.dart';
 
-import 'generated/brotli_bindings.dart' as bindings;
 import 'quality.dart';
+import 'third_party/brotli_bindings.g.dart' as bindings;
 
 /// A [Converter] that compresses a sequence of bytes using Brotli.
-class BrotliEncoder extends Converter<List<int>, List<int>> {
+@RecordUse()
+final class BrotliEncoder extends Converter<List<int>, List<int>> {
   /// The compression quality level.
   final int quality;
 
@@ -89,11 +94,6 @@ class BrotliEncoder extends Converter<List<int>, List<int>> {
 class _BrotliEncoderSink extends ByteConversionSinkBase implements Finalizable {
   final Sink<List<int>> _outSink;
   Pointer<bindings.BrotliEncoderStateStruct> _state;
-  final Pointer<Size> _availableIn;
-  final Pointer<Pointer<Uint8>> _nextIn;
-  final Pointer<Size> _availableOut;
-  final Pointer<Pointer<Uint8>> _nextOut;
-  final Pointer<Uint8> _chunkPtr;
   static const int _chunkSize = 65536;
 
   static final _finalizer = NativeFinalizer(
@@ -104,12 +104,7 @@ class _BrotliEncoderSink extends ByteConversionSinkBase implements Finalizable {
   );
 
   _BrotliEncoderSink(this._outSink, int quality, int window)
-    : _state = bindings.BrotliEncoderCreateInstance(nullptr, nullptr, nullptr),
-      _availableIn = calloc<Size>(),
-      _nextIn = calloc<Pointer<Uint8>>(),
-      _availableOut = calloc<Size>(),
-      _nextOut = calloc<Pointer<Uint8>>(),
-      _chunkPtr = calloc<Uint8>(_chunkSize) {
+    : _state = bindings.BrotliEncoderCreateInstance(nullptr, nullptr, nullptr) {
     if (_state == nullptr) {
       throw Exception('Failed to create Brotli encoder instance');
     }
@@ -130,42 +125,50 @@ class _BrotliEncoderSink extends ByteConversionSinkBase implements Finalizable {
   void add(List<int> chunk) {
     if (_state == nullptr) throw StateError('Sink is closed');
     final bytes = chunk is Uint8List ? chunk : Uint8List.fromList(chunk);
-    final inputPtr = calloc<Uint8>(bytes.length);
+    final inputPtr = malloc<Uint8>(bytes.length);
     inputPtr.asTypedList(bytes.length).setAll(0, bytes);
 
-    _availableIn.value = bytes.length;
-    _nextIn.value = inputPtr;
+    final availableIn = malloc<Size>()..value = bytes.length;
+    final nextIn = malloc<Pointer<Uint8>>()..value = inputPtr;
+    final availableOut = malloc<Size>();
+    final nextOut = malloc<Pointer<Uint8>>();
+    final chunkPtr = malloc<Uint8>(_chunkSize);
 
     try {
-      while (_availableIn.value > 0 ||
+      while (availableIn.value > 0 ||
           bindings.BrotliEncoderHasMoreOutput(_state) != 0) {
-        _availableOut.value = _chunkSize;
-        _nextOut.value = _chunkPtr;
+        availableOut.value = _chunkSize;
+        nextOut.value = chunkPtr;
 
         final result = bindings.BrotliEncoderCompressStream(
           _state,
           bindings.BrotliEncoderOperation.BROTLI_OPERATION_PROCESS,
-          _availableIn,
-          _nextIn,
-          _availableOut,
-          _nextOut,
+          availableIn,
+          nextIn,
+          availableOut,
+          nextOut,
           nullptr,
         );
 
         if (result == 0) throw Exception('Brotli compression failed');
 
-        final produced = _chunkSize - _availableOut.value;
+        final produced = _chunkSize - availableOut.value;
         if (produced > 0) {
-          _outSink.add(Uint8List.fromList(_chunkPtr.asTypedList(produced)));
+          _outSink.add(Uint8List.fromList(chunkPtr.asTypedList(produced)));
         }
 
-        if (_availableIn.value == 0 &&
+        if (availableIn.value == 0 &&
             bindings.BrotliEncoderHasMoreOutput(_state) == 0) {
           break;
         }
       }
     } finally {
-      calloc.free(inputPtr);
+      malloc.free(inputPtr);
+      malloc.free(availableIn);
+      malloc.free(nextIn);
+      malloc.free(availableOut);
+      malloc.free(nextOut);
+      malloc.free(chunkPtr);
     }
   }
 
@@ -173,38 +176,45 @@ class _BrotliEncoderSink extends ByteConversionSinkBase implements Finalizable {
   void close() {
     if (_state == nullptr) return;
     _finalizer.detach(this);
+
+    final availableIn = malloc<Size>();
+    final nextIn = malloc<Pointer<Uint8>>();
+    final availableOut = malloc<Size>();
+    final nextOut = malloc<Pointer<Uint8>>();
+    final chunkPtr = malloc<Uint8>(_chunkSize);
+
     try {
       while (bindings.BrotliEncoderIsFinished(_state) == 0) {
-        _availableIn.value = 0;
-        _nextIn.value = nullptr;
-        _availableOut.value = _chunkSize;
-        _nextOut.value = _chunkPtr;
+        availableIn.value = 0;
+        nextIn.value = nullptr;
+        availableOut.value = _chunkSize;
+        nextOut.value = chunkPtr;
 
         final result = bindings.BrotliEncoderCompressStream(
           _state,
           bindings.BrotliEncoderOperation.BROTLI_OPERATION_FINISH,
-          _availableIn,
-          _nextIn,
-          _availableOut,
-          _nextOut,
+          availableIn,
+          nextIn,
+          availableOut,
+          nextOut,
           nullptr,
         );
 
         if (result == 0) throw Exception('Brotli compression failed on finish');
 
-        final produced = _chunkSize - _availableOut.value;
+        final produced = _chunkSize - availableOut.value;
         if (produced > 0) {
-          _outSink.add(Uint8List.fromList(_chunkPtr.asTypedList(produced)));
+          _outSink.add(Uint8List.fromList(chunkPtr.asTypedList(produced)));
         }
       }
     } finally {
       bindings.BrotliEncoderDestroyInstance(_state);
       _state = nullptr;
-      calloc.free(_availableIn);
-      calloc.free(_nextIn);
-      calloc.free(_availableOut);
-      calloc.free(_nextOut);
-      calloc.free(_chunkPtr);
+      malloc.free(availableIn);
+      malloc.free(nextIn);
+      malloc.free(availableOut);
+      malloc.free(nextOut);
+      malloc.free(chunkPtr);
       _outSink.close();
     }
   }
